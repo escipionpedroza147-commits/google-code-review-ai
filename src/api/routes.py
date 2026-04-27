@@ -11,6 +11,7 @@ from fastapi import APIRouter, HTTPException, Header, Request
 from config import settings
 from src.core.static_analyzer import run_static_checks, detect_language, calculate_score
 from src.core.inline_comments import generate_inline_comments, summarize_inline_comments
+from src.core.language_rules import get_supported_languages
 from src.models.schemas import (
     CodeReviewRequest,
     CodeReviewResponse,
@@ -121,6 +122,12 @@ async def static_analysis_endpoint(request: CodeReviewRequest):
         "lines_analyzed": len(request.code.split("\n")),
         "finding_count": len(findings),
     }
+
+
+@router.get("/languages")
+async def supported_languages():
+    """List supported languages and their analysis depth."""
+    return {"languages": get_supported_languages()}
 
 
 @router.post("/review/inline", response_model=InlineReviewResponse)

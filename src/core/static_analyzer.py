@@ -47,6 +47,8 @@ def detect_language(code: str, filename: Optional[str] = None) -> Language:
 
 def run_static_checks(code: str, language: Language) -> list[ReviewFinding]:
     """Run language-aware static checks. Fast, free, deterministic."""
+    from src.core.language_rules import run_language_rules
+
     findings = []
     lines = code.split("\n")
 
@@ -54,6 +56,9 @@ def run_static_checks(code: str, language: Language) -> list[ReviewFinding]:
     findings.extend(_check_security(code, lines, language))
     findings.extend(_check_complexity(code, lines, language))
     findings.extend(_check_quality(code, lines, language))
+
+    # Language-specific extended rules
+    findings.extend(run_language_rules(code, lines, language))
 
     return findings
 
