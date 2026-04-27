@@ -1,37 +1,32 @@
-# Google Code Review AI
+# 🔍 Google Code Review AI
 
-**AI-powered code review with the precision of a Google Staff Engineer.**
+> AI-powered code review with the precision of a Google Staff Engineer.
 
-Stop shipping bugs. Start reviewing code like a top-tier engineering team.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-green.svg)](https://fastapi.tiangolo.com/)
+[![Tests](https://img.shields.io/badge/tests-237%20passed-brightgreen.svg)]()
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![CI](https://github.com/escipionpedroza147-commits/google-code-review-ai/actions/workflows/tests.yml/badge.svg)](https://github.com/escipionpedroza147-commits/google-code-review-ai/actions)
 
 ## The Problem
 
 Code reviews are inconsistent. Junior devs miss security flaws. Senior devs don't have time to review every PR. Static linters catch formatting issues but miss logic bugs, race conditions, and subtle vulnerabilities. Meanwhile, one missed SQL injection costs you months.
 
+## The Solution
+
 **Google Code Review AI** combines free static analysis with deep AI-powered review to catch what humans and linters miss — before it hits production.
 
-## Features
+### What It Does
 
-- 🔍 **Static + AI Hybrid** — Static analysis catches the obvious stuff for free. AI handles nuanced logic, security, and architecture issues
+- 🔍 **Static + AI Hybrid** — Static analysis catches the obvious stuff for free. AI handles nuanced logic, security, and architecture
 - 🤖 **Dual AI Provider** — Choose Google Gemini or OpenAI as your review engine
 - 🔒 **Security-First** — Detects OWASP Top 10 vulnerabilities, hardcoded secrets, SQL injection, unsafe deserialization
-- 🌐 **Multi-Language** — Python, JavaScript, TypeScript, Go, Java, Rust, C++ with auto-detection
+- 🌐 **Multi-Language** — Python, JavaScript, TypeScript with auto-detection and language-specific rules
+- 📝 **Inline Comments** — Line-by-line review comments with severity levels and fix suggestions
+- 📊 **Git Diff Analysis** — Review only changed lines in a diff, focused and efficient
+- 📈 **Review History & Analytics** — Track reviews, most common issues, languages analyzed
 - 🔗 **GitHub Webhook** — Auto-review PRs on open/push with signature verification
-- 📊 **Quality Scoring** — 0-100 score with severity breakdown and metrics
-- ⚡ **Zero-Cost Mode** — Static analysis endpoint runs instantly with no AI cost
-- 🗜️ **Prompt Optimization** — Detects redundancy, bloat, and waste in code
-- 🚨 **Severity Tiers** — Critical → High → Medium → Low → Info with actionable fixes
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/v1/review/code` | Full code review (static + AI) |
-| POST | `/api/v1/review/diff` | PR/diff review with approve/reject |
-| POST | `/api/v1/analyze/static` | Static analysis only (free, no AI) |
-| POST | `/api/v1/webhook/github` | GitHub webhook for auto-review |
-| GET | `/api/v1/health` | Health check |
-| GET | `/api/v1/stats` | Review statistics and metrics |
+- 📊 **Quality Scoring** — 0-100 score with severity breakdown
 
 ## Quick Start
 
@@ -40,150 +35,155 @@ git clone https://github.com/escipionpedroza147-commits/google-code-review-ai.gi
 cd google-code-review-ai
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env with your API keys
 python main.py
 ```
 
 Server at `http://localhost:8000` — Interactive docs at `/docs`.
 
-## Usage Examples
-
-### Full Code Review (Static + AI)
+### Docker
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/review/code \
-  -H "Content-Type: application/json" \
-  -d '{
-    "code": "import pickle\ndef load(data):\n    return pickle.loads(data)",
-    "language": "python"
-  }'
+docker compose up -d
 ```
 
-Response:
+## API Endpoints (11 Total)
 
-```json
-{
-  "findings": [
-    {
-      "severity": "high",
-      "category": "security",
-      "line": 3,
-      "title": "Unsafe Deserialization",
-      "description": "pickle.loads can execute arbitrary code from untrusted data.",
-      "suggestion": "Use json for data interchange. If YAML needed, use yaml.safe_load()."
-    }
-  ],
-  "summary": "Reviewed 3 lines of python. Quality score: 65/100. Significant issues found.",
-  "score": 65,
-  "language_detected": "python",
-  "lines_reviewed": 3
-}
-```
+### Code Review
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/review/code` | Full AI + static code review with quality score |
+| `POST` | `/api/v1/review/inline` | Line-by-line review comments with severity & fixes |
+| `POST` | `/api/v1/review/diff` | AI review of code diffs (PR-style) |
 
-### Static Analysis Only (Free)
+### Static Analysis
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/api/v1/analyze/static` | Free static analysis (no AI cost) |
+| `POST` | `/api/v1/analyze/diff` | Analyze only changed lines in a unified diff |
+
+### Languages
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/languages` | List supported languages and their rules |
+
+### History & Analytics
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/history` | Review history with filtering (language, date range) |
+| `GET` | `/api/v1/analytics` | Aggregate stats — top issues, languages, avg scores |
+| `GET` | `/api/v1/stats` | System stats and configuration |
+
+### Infrastructure
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/api/v1/health` | Health check with uptime |
+| `POST` | `/api/v1/webhook/github` | GitHub PR webhook with signature verification |
+
+## Example: Review Code
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/analyze/static \
   -H "Content-Type: application/json" \
   -d '{
-    "code": "api_key = \"sk-abc123def456ghi789jkl012mno345pqr678\"",
+    "code": "import pickle\ndata = pickle.loads(user_input)\nquery = f\"SELECT * FROM users WHERE id = {user_id}\"",
     "language": "python"
   }'
 ```
 
-### PR Diff Review
+Detects: unsafe deserialization, SQL injection, f-string in query.
+
+## Example: Inline Review
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/review/diff \
+curl -X POST http://localhost:8000/api/v1/review/inline \
   -H "Content-Type: application/json" \
   -d '{
-    "diff": "diff --git a/auth.py b/auth.py\n+ query = f\"SELECT * FROM users WHERE id = {uid}\"",
-    "pr_title": "Add user lookup",
-    "pr_description": "New endpoint for fetching user profiles"
+    "code": "password = \"admin123\"\neval(user_input)",
+    "language": "python"
   }'
 ```
+
+Returns line-by-line comments with severity levels and fix suggestions.
+
+## Example: Diff Analysis
+
+```bash
+curl -X POST http://localhost:8000/api/v1/analyze/diff \
+  -H "Content-Type: application/json" \
+  -d '{
+    "diff": "--- a/app.py\n+++ b/app.py\n@@ -1,3 +1,4 @@\n import os\n+import pickle\n+data = pickle.loads(request.data)\n query = \"SELECT * FROM users\""
+  }'
+```
+
+Reviews only the changed lines — fast, focused, efficient.
 
 ## Architecture
 
 ```
-Request → Static Analysis (free, instant) → AI Review (deep, nuanced) → Combined Report
-```
-
-**Why hybrid?** Static analysis is deterministic, fast, and free — it catches hardcoded secrets, SQL injection patterns, eval/exec usage, complexity issues, and code smells without spending a single API token. AI fills the gaps: logic errors, architectural problems, subtle security issues, and context-aware recommendations.
-
-This means even without an API key configured, you get valuable security and quality analysis for zero cost.
-
-## Project Structure
-
-```
 google-code-review-ai/
-├── main.py                          # FastAPI app with lifespan
+├── main.py                              # FastAPI server
 ├── config/
-│   └── settings.py                  # Env-based configuration
+│   └── settings.py                      # Env-based configuration
 ├── src/
 │   ├── api/
-│   │   └── routes.py                # 6 API endpoints
+│   │   └── routes.py                    # 11 API endpoints
 │   ├── core/
-│   │   ├── prompts.py               # AI prompt templates
-│   │   └── static_analyzer.py       # Static analysis engine
+│   │   ├── static_analyzer.py           # Pattern-based vulnerability detection
+│   │   ├── inline_comments.py           # Line-by-line review engine
+│   │   ├── language_rules.py            # Multi-language rule system
+│   │   ├── diff_analyzer.py             # Git diff parsing & analysis
+│   │   └── prompts.py                   # AI review prompt templates
 │   ├── models/
-│   │   └── schemas.py               # Pydantic v2 schemas
+│   │   └── schemas.py                   # Pydantic v2 schemas
 │   └── services/
-│       └── review_service.py        # Orchestration (static + AI)
-├── tests/                           # 70+ tests across 5 files
-│   ├── test_static_analyzer.py      # Static analysis patterns
-│   ├── test_schemas.py              # Model validation
-│   ├── test_routes.py               # API endpoints
-│   ├── test_review_service.py       # Service orchestration
-│   └── test_prompts.py              # Prompt templates
+│       ├── review_service.py            # Review orchestration
+│       └── history_service.py           # Review history & analytics
+├── tests/                               # 237 tests across 9 files
+│   ├── test_static_analyzer.py
+│   ├── test_inline_comments.py
+│   ├── test_language_rules.py
+│   ├── test_diff_analyzer.py
+│   ├── test_history.py
+│   ├── test_routes.py
+│   ├── test_schemas.py
+│   ├── test_review_service.py
+│   └── test_prompts.py
+├── .github/workflows/tests.yml          # CI/CD
+├── Dockerfile                           # Multi-stage build
+├── docker-compose.yml
 ├── requirements.txt
-├── LICENSE
-└── CONTRIBUTING.md
+└── LICENSE
 ```
 
-## Supported Languages
+## Multi-Language Support
 
-| Language | Extension | Detection | Static Analysis |
-|----------|-----------|-----------|-----------------|
-| Python | .py | ✅ | Full (secrets, SQL, eval, pickle, complexity) |
-| JavaScript | .js | ✅ | Core (secrets, SQL, complexity) |
-| TypeScript | .ts, .tsx | ✅ | Core (secrets, SQL, complexity) |
-| Go | .go | ✅ | Core (secrets, complexity) |
-| Java | .java | ✅ | Core (secrets, SQL, complexity) |
-| Rust | .rs | ✅ | Core (secrets, complexity) |
-| C/C++ | .c, .cpp, .cc | ✅ | Core (secrets, complexity) |
+| Language | Static Analysis | AI Review | Rules |
+|----------|:-:|:-:|---|
+| Python | ✅ | ✅ | Security, style, imports, type hints |
+| JavaScript | ✅ | ✅ | Security, async patterns, DOM issues |
+| TypeScript | ✅ | ✅ | Type safety, JS rules + TS-specific |
 
-## Static Analysis Checks
-
-- 🔑 **Hardcoded Secrets** — API keys, GitHub tokens, AWS credentials, passwords
-- 💉 **SQL Injection** — f-strings, .format(), string concatenation in queries
-- ⚠️ **Dangerous Functions** — eval(), exec(), pickle.loads(), yaml.load()
-- 🕳️ **Empty Exception Handlers** — except: pass, bare except blocks
-- 📏 **Complexity** — Long functions (>50 lines), deep nesting (>4 levels)
-- 📝 **Code Markers** — TODO, FIXME, HACK, XXX comments
-
-## Use Cases
-
-- **Enterprise Code Review** — Consistent, thorough reviews at scale
-- **CI/CD Integration** — Auto-review every PR before human review
-- **Security Auditing** — Catch vulnerabilities before they ship
-- **Code Quality Gates** — Block merges below a quality score threshold
-- **Developer Training** — Learn from detailed, actionable feedback
-
-## Testing
+## Running Tests
 
 ```bash
 python -m pytest tests/ -v
 ```
 
-All tests run offline — no API keys required.
+All 237 tests run offline — no API keys required for static analysis.
+
+## Use Cases
+
+- **PR Review Automation** — Auto-review every pull request via GitHub webhook
+- **Security Scanning** — Catch vulnerabilities before they ship
+- **Code Quality Gates** — Enforce quality scores in CI/CD pipelines
+- **Team Onboarding** — Consistent review standards for new developers
+- **Diff-Focused Review** — Review only what changed, not the entire file
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
-## Built By
+## Contact
 
 **Escipion Pedroza**
-
 GitHub: [@escipionpedroza147-commits](https://github.com/escipionpedroza147-commits)
