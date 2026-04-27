@@ -5,6 +5,7 @@ import hmac
 import logging
 import time
 from datetime import datetime
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Header, Request
 
@@ -26,6 +27,7 @@ from src.models.schemas import (
     Severity,
 )
 from src.services.review_service import review_code, review_diff
+from src.services.history_service import history_store
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +82,25 @@ async def review_code_endpoint(request: CodeReviewRequest):
         _stats["total_reviews"] += 1
         _stats["code_reviews"] += 1
         _stats["total_score"] += result.score
+
+        # Log to history
+        sev_counts = {}
+        cat_list = []
+        for f in result.findings:
+            sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+            if f.category not in cat_list:
+                cat_list.append(f.category)
+        history_store.log_review(
+            review_type="code",
+            language=result.language_detected,
+            score=result.score,
+            finding_count=len(result.findings),
+            findings_by_severity=sev_counts,
+            categories=cat_list,
+            lines_reviewed=result.lines_reviewed,
+            filename=request.filename,
+        )
+
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -95,6 +116,24 @@ async def review_diff_endpoint(request: DiffReviewRequest):
         result = await review_diff(request)
         _stats["total_reviews"] += 1
         _stats["diff_reviews"] += 1
+
+        # Log to history
+        sev_counts = {}
+        cat_list = []
+        for f in result.findings:
+            sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+            if f.category not in cat_list:
+                cat_list.append(f.category)
+        history_store.log_review(
+            review_type="diff",
+            language="unknown",
+            score=0,
+            finding_count=len(result.findings),
+            findings_by_severity=sev_counts,
+            categories=cat_list,
+            lines_reviewed=result.additions_reviewed + result.deletions_reviewed,
+        )
+
         return result
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -128,6 +167,33 @@ async def static_analysis_endpoint(request: CodeReviewRequest):
 async def supported_languages():
     """List supported languages and their analysis depth."""
     return {"languages": get_supported_languages()}
+
+
+@router.get("/history")
+async def get_review_history(
+    limit: int = 50,
+    offset: int = 0,
+    review_type: Optional[str] = None,
+    language: Optional[str] = None,
+):
+    """Retrieve review history with optional filters."""
+    records = history_store.get_history(
+        limit=limit, offset=offset,
+        review_type=review_type, language=language,
+    )
+    return {
+        "records": [r.model_dump() for r in records],
+        "total": history_store.count,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@router.get("/analytics")
+async def get_analytics():
+    """Get review analytics — most common issues, languages, trends."""
+    analytics = history_store.get_analytics()
+    return analytics.model_dump()
 
 
 @router.post("/review/inline", response_model=InlineReviewResponse)
