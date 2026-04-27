@@ -13,9 +13,13 @@ from config import settings
 from src.core.static_analyzer import run_static_checks, detect_language, calculate_score
 from src.core.inline_comments import generate_inline_comments, summarize_inline_comments
 from src.core.language_rules import get_supported_languages
+from src.core.diff_analyzer import analyze_diff
 from src.models.schemas import (
     CodeReviewRequest,
     CodeReviewResponse,
+    DiffAnalysisRequest,
+    DiffAnalysisResponse,
+    DiffFileModel,
     DiffReviewRequest,
     DiffReviewResponse,
     HealthResponse,
@@ -167,6 +171,58 @@ async def static_analysis_endpoint(request: CodeReviewRequest):
 async def supported_languages():
     """List supported languages and their analysis depth."""
     return {"languages": get_supported_languages()}
+
+
+@router.post("/analyze/diff", response_model=DiffAnalysisResponse)
+async def analyze_diff_endpoint(request: DiffAnalysisRequest):
+    """Analyze a unified diff — reviews only the changed lines."""
+    try:
+        result = analyze_diff(request.diff)
+
+        file_models = [
+            DiffFileModel(
+                filename=f.filename,
+                language=f.language.value,
+                additions_count=len(f.additions),
+                deletions_count=len(f.deletions),
+            )
+            for f in result.files
+        ]
+
+        _stats["total_reviews"] += 1
+        _stats["diff_reviews"] += 1
+
+        # Log to history
+        sev_counts = {}
+        cat_list = []
+        for f in result.findings:
+            sev_counts[f.severity.value] = sev_counts.get(f.severity.value, 0) + 1
+            if f.category not in cat_list:
+                cat_list.append(f.category)
+        history_store.log_review(
+            review_type="diff",
+            language="mixed" if len(result.files) > 1 else (result.files[0].language.value if result.files else "unknown"),
+            score=result.score,
+            finding_count=len(result.findings),
+            findings_by_severity=sev_counts,
+            categories=cat_list,
+            lines_reviewed=result.total_additions + result.total_deletions,
+        )
+
+        return DiffAnalysisResponse(
+            files=file_models,
+            findings=result.findings,
+            total_additions=result.total_additions,
+            total_deletions=result.total_deletions,
+            files_changed=result.files_changed,
+            score=result.score,
+            summary=result.summary,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Diff analysis failed: {e}")
+        raise HTTPException(status_code=500, detail="Diff analysis failed — check server logs.")
 
 
 @router.get("/history")

@@ -106,6 +106,31 @@ class InlineReviewResponse(BaseModel):
     total_comments: int
 
 
+class DiffFileModel(BaseModel):
+    """A single file's changes from a diff analysis."""
+    filename: str
+    language: str
+    additions_count: int = Field(ge=0)
+    deletions_count: int = Field(ge=0)
+
+
+class DiffAnalysisRequest(BaseModel):
+    """Submit a unified diff for focused analysis on changed lines."""
+    diff: str = Field(..., min_length=1, max_length=1000000)
+    context: Optional[str] = None
+
+
+class DiffAnalysisResponse(BaseModel):
+    """Response with findings scoped to changed lines only."""
+    files: list[DiffFileModel]
+    findings: list[ReviewFinding]
+    total_additions: int = Field(ge=0)
+    total_deletions: int = Field(ge=0)
+    files_changed: int = Field(ge=0)
+    score: int = Field(ge=0, le=100)
+    summary: str
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "1.0.0"
