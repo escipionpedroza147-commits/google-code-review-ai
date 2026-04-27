@@ -10,12 +10,16 @@ from fastapi import APIRouter, HTTPException, Header, Request
 
 from config import settings
 from src.core.static_analyzer import run_static_checks, detect_language, calculate_score
+from src.core.inline_comments import generate_inline_comments, summarize_inline_comments
 from src.models.schemas import (
     CodeReviewRequest,
     CodeReviewResponse,
     DiffReviewRequest,
     DiffReviewResponse,
     HealthResponse,
+    InlineCommentModel,
+    InlineReviewRequest,
+    InlineReviewResponse,
     Language,
     ReviewFinding,
     Severity,
@@ -117,6 +121,67 @@ async def static_analysis_endpoint(request: CodeReviewRequest):
         "lines_analyzed": len(request.code.split("\n")),
         "finding_count": len(findings),
     }
+
+
+@router.post("/review/inline", response_model=InlineReviewResponse)
+async def inline_review_endpoint(request: InlineReviewRequest):
+    """Generate inline code review comments with line numbers and suggestions."""
+    try:
+        comments = generate_inline_comments(
+            code=request.code,
+            language=request.language,
+            filename=request.filename,
+        )
+        summary = summarize_inline_comments(comments)
+
+        # Detect language for response
+        lang = request.language
+        if lang == Language.AUTO:
+            lang = detect_language(request.code, request.filename)
+
+        # Convert to response models
+        comment_models = [
+            InlineCommentModel(
+                line=c.line,
+                end_line=c.end_line,
+                severity=c.severity,
+                category=c.category,
+                message=c.message,
+                suggestion=c.suggestion,
+                fix=c.fix,
+            )
+            for c in comments
+        ]
+
+        lines_reviewed = len(request.code.split("\n"))
+        findings_for_score = [
+            ReviewFinding(
+                severity=c.severity,
+                category=c.category,
+                title=c.message[:80],
+                description=c.message,
+                suggestion=c.suggestion or "",
+            )
+            for c in comments
+            if c.severity in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM)
+        ]
+        score = calculate_score(findings_for_score)
+
+        _stats["total_reviews"] += 1
+
+        return InlineReviewResponse(
+            comments=comment_models,
+            summary=summary,
+            score=score,
+            language_detected=lang.value,
+            lines_reviewed=lines_reviewed,
+            total_comments=len(comments),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Inline review failed: {e}")
+        raise HTTPException(status_code=500, detail="Inline review failed — check server logs.")
 
 
 @router.post("/webhook/github")

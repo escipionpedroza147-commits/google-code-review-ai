@@ -78,6 +78,34 @@ class DiffReviewResponse(BaseModel):
     deletions_reviewed: int
 
 
+class InlineCommentModel(BaseModel):
+    """Inline code review comment anchored to a specific line."""
+    line: int = Field(..., ge=1, description="1-indexed line number")
+    end_line: int = Field(..., ge=1, description="End line (same as line for single-line)")
+    severity: Severity
+    category: str
+    message: str
+    suggestion: Optional[str] = None
+    fix: Optional[str] = None
+
+
+class InlineReviewRequest(BaseModel):
+    """Submit code for inline review comments."""
+    code: str = Field(..., min_length=1, max_length=500000)
+    language: Language = Language.AUTO
+    filename: Optional[str] = None
+
+
+class InlineReviewResponse(BaseModel):
+    """Response with inline comments, summary, and score."""
+    comments: list[InlineCommentModel]
+    summary: dict
+    score: int = Field(..., ge=0, le=100)
+    language_detected: str
+    lines_reviewed: int
+    total_comments: int
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     version: str = "1.0.0"
